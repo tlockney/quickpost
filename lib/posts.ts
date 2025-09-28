@@ -1,5 +1,5 @@
 import { ensureDir } from "jsr:@std/fs@1";
-import { join } from "jsr:@std/path@1";
+import { join, resolve } from "jsr:@std/path@1";
 
 export interface Post {
   id: string;
@@ -21,7 +21,11 @@ export interface UpdatePostData {
 }
 
 export class PostManager {
-  constructor(private postsDir: string = "./posts") {}
+  private postsDir: string;
+
+  constructor(postsDir?: string) {
+    this.postsDir = postsDir ? resolve(postsDir) : resolve(Deno.cwd(), "posts");
+  }
 
   private generateSlug(title: string): string {
     return title
@@ -47,11 +51,11 @@ export class PostManager {
       const frontmatter: Record<string, any> = {};
 
       // Simple YAML-like parsing for basic key: value pairs
-      frontmatterText.split('\n').forEach(line => {
-        const colonIndex = line.indexOf(':');
+      frontmatterText.split("\n").forEach((line) => {
+        const colonIndex = line.indexOf(":");
         if (colonIndex > 0) {
           const key = line.slice(0, colonIndex).trim();
-          const value = line.slice(colonIndex + 1).trim().replace(/^["']|["']$/g, '');
+          const value = line.slice(colonIndex + 1).trim().replace(/^["']|["']$/g, "");
           frontmatter[key] = value;
         }
       });
@@ -76,7 +80,7 @@ export class PostManager {
     await ensureDir(this.postsDir);
 
     // Parse frontmatter to check for custom slug
-    const { frontmatter, body } = this.parseFrontmatter(data.content);
+    const { frontmatter } = this.parseFrontmatter(data.content);
 
     // Use custom slug from frontmatter, or generate from title
     const slug = frontmatter.slug || this.generateSlug(data.title);

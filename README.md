@@ -30,7 +30,14 @@ A lightweight, local web-based markdown editor built with Deno for rapid blog po
 
 2. **Run the development server**
    ```bash
+   # Use default posts directory (current directory + "/posts")
    deno run --allow-net --allow-read --allow-write mod.ts
+
+   # Or specify a custom posts directory
+   deno run --allow-net --allow-read --allow-write mod.ts /path/to/your/posts
+
+   # Or use a relative path
+   deno run --allow-net --allow-read --allow-write mod.ts ../blog-posts
    ```
 
 3. **Open your browser**
@@ -42,7 +49,12 @@ A lightweight, local web-based markdown editor built with Deno for rapid blog po
 
 ```bash
 deno compile --allow-net --allow-read --allow-write --output quickpost mod.ts
+
+# Run with default directory
 ./quickpost
+
+# Run with custom directory
+./quickpost /path/to/your/posts
 ```
 
 ## Usage
@@ -50,14 +62,16 @@ deno compile --allow-net --allow-read --allow-write --output quickpost mod.ts
 ### Writing Posts
 
 1. **Start typing** - Begin writing in the markdown editor
-2. **Auto title extraction** - Title field automatically populates from your first heading or frontmatter
+2. **Auto title extraction** - Title field automatically populates from your first heading or
+   frontmatter
 3. **Edit title** - Click the title field to manually override the extracted title
 4. **Save post** - Use Ctrl/Cmd+S or click Save button
 5. **Export** - Download your post as a markdown file
 
 ### File Organization
 
-Posts are automatically organized in the `posts/` directory:
+Posts are automatically organized in the posts directory (defaults to `./posts` in your current
+working directory, or the custom directory you specify):
 
 ```
 posts/
@@ -87,6 +101,7 @@ Your markdown content here...
 ```
 
 **Supported frontmatter fields:**
+
 - `title` - Custom post title (overrides auto-extracted title)
 - `slug` - Custom URL slug (overrides auto-generated slug)
 
@@ -110,8 +125,25 @@ QuickPost provides a REST API for programmatic access:
 ### Default Settings
 
 - **Port**: 7777 (configurable via config.json)
-- **Posts directory**: `./posts`
+- **Posts directory**: `./posts` (relative to current working directory, configurable via
+  command-line argument)
 - **Auto-open browser**: Yes
+
+### Directory Configuration
+
+QuickPost supports flexible directory configuration for storing your posts:
+
+**Default Behavior:**
+
+- Posts are stored in `./posts` relative to your current working directory
+- If you run QuickPost from `/home/user/blog`, posts will be stored in `/home/user/blog/posts`
+
+**Custom Directory:**
+
+- Pass a directory path as the first argument:
+  `deno run --allow-net --allow-read --allow-write mod.ts /path/to/posts`
+- Supports both absolute paths (`/home/user/my-blog`) and relative paths (`../blog-posts`)
+- The directory will be created automatically if it doesn't exist
 
 ### Custom Configuration
 
@@ -120,10 +152,11 @@ Create a `config.json` file to customize settings:
 ```json
 {
   "port": 8080,
-  "postsDir": "./my-posts",
   "autoOpen": false
 }
 ```
+
+**Note:** Directory configuration is handled via command-line arguments, not the config file.
 
 ## Development
 

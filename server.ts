@@ -1,18 +1,27 @@
 import { PostManager } from "./lib/posts.ts";
 
 function getContentType(path: string): string {
-  const ext = path.split('.').pop()?.toLowerCase();
+  const ext = path.split(".").pop()?.toLowerCase();
   switch (ext) {
-    case 'html': return 'text/html; charset=utf-8';
-    case 'js': return 'application/javascript';
-    case 'css': return 'text/css';
-    case 'json': return 'application/json';
-    case 'png': return 'image/png';
-    case 'jpg':
-    case 'jpeg': return 'image/jpeg';
-    case 'gif': return 'image/gif';
-    case 'svg': return 'image/svg+xml';
-    default: return 'text/plain';
+    case "html":
+      return "text/html; charset=utf-8";
+    case "js":
+      return "application/javascript";
+    case "css":
+      return "text/css";
+    case "json":
+      return "application/json";
+    case "png":
+      return "image/png";
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "gif":
+      return "image/gif";
+    case "svg":
+      return "image/svg+xml";
+    default:
+      return "text/plain";
   }
 }
 
@@ -21,8 +30,8 @@ interface Server {
   shutdown: () => Promise<void>;
 }
 
-export function createServer(port: number): Server {
-  const postManager = new PostManager();
+export function createServer(port: number, postsDir?: string): Server {
+  const postManager = new PostManager(postsDir);
 
   const handler = async (request: Request): Promise<Response> => {
     const url = new URL(request.url);

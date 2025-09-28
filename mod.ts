@@ -1,6 +1,7 @@
 #!/usr/bin/env -S deno run --allow-net --allow-read --allow-write
 
 import { createServer } from "./server.ts";
+import { resolve } from "jsr:@std/path@1";
 
 const DEFAULT_PORT = 7777;
 
@@ -44,12 +45,17 @@ async function openBrowser(url: string): Promise<void> {
 async function main() {
   const startTime = performance.now();
 
+  // Parse CLI arguments
+  const args = Deno.args;
+  const postsDir = args.length > 0 ? resolve(args[0]) : resolve(Deno.cwd(), "posts");
+
   const config = await loadConfig();
   const port = config.port ?? DEFAULT_PORT;
 
   console.log(`🚀 Starting QuickPost server on http://localhost:${port}`);
+  console.log(`📁 Using posts directory: ${postsDir}`);
 
-  createServer(port);
+  createServer(port, postsDir);
 
   // Open browser after server starts
   await openBrowser(`http://localhost:${port}`);
