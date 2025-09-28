@@ -30,6 +30,21 @@ interface Server {
   shutdown: () => Promise<void>;
 }
 
+// Helper functions for common response patterns
+const jsonResponse = (data: unknown, status = 200): Response =>
+  new Response(JSON.stringify(data), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+
+const errorResponse = (error: unknown, status = 400): Response => {
+  const message = error instanceof Error ? error.message : "Unknown error";
+  return jsonResponse({ error: message }, status);
+};
+
+const notFoundResponse = () => new Response("Not Found", { status: 404 });
+const methodNotAllowed = () => new Response("Method Not Allowed", { status: 405 });
+
 export function createServer(port: number, postsDir?: string): Server {
   const postManager = new PostManager(postsDir);
 
@@ -38,35 +53,16 @@ export function createServer(port: number, postsDir?: string): Server {
     const path = url.pathname;
     const method = request.method;
 
-    // Log all API requests
-    if (path.startsWith("/api/")) {
-      console.log(`${method} ${path}`);
-    }
+    // Log all requests
+    console.log(`${method} ${path}`);
 
     // Health check endpoint
     if (path === "/health") {
       return new Response("OK", { status: 200 });
     }
 
-    // Serve main HTML page
-    if (path === "/") {
-      try {
-        const html = await Deno.readTextFile("./static/index.html");
-        return new Response(html, {
-          status: 200,
-          headers: { "content-type": "text/html; charset=utf-8" },
-        });
-      } catch {
-        // Return minimal HTML if file doesn't exist yet
-        return new Response("<html><body>QuickPost</body></html>", {
-          status: 200,
-          headers: { "content-type": "text/html; charset=utf-8" },
-        });
-      }
-    }
-
     // Serve static files
-    if (path.startsWith("/") && !path.startsWith("/api/")) {
+    if (!path.startsWith("/api/")) {
       const staticPath = path === "/" ? "/index.html" : path;
       const filePath = `./static${staticPath}`;
 
@@ -83,81 +79,54 @@ export function createServer(port: number, postsDir?: string): Server {
       }
     }
 
-    // API routes
-    if (path === "/api/posts") {
-      if (method === "GET") {
-        const posts = await postManager.list();
-        return new Response(JSON.stringify(posts), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        });
+    // API routes - single regex for both collection and single resource
+    const apiMatch = path.match(/^\/api\/posts(?:\/([^\/]+))?$/);
+    if (!apiMatch) return notFoundResponse();
+
+    const postId = apiMatch[1];
+
+    // Route based on method and presence of ID
+    switch (method) {
+      case "GET": {
+        if (postId) {
+          const post = await postManager.get(postId);
+          return post ? jsonResponse(post) : notFoundResponse();
+        }
+        return jsonResponse(await postManager.list());
       }
 
-      if (method === "POST") {
+      case "POST": {
+        if (postId) return methodNotAllowed();
         try {
           const data = await request.json();
           const post = await postManager.create(data);
-          return new Response(JSON.stringify(post), {
-            status: 201,
-            headers: { "content-type": "application/json" },
-          });
+          return jsonResponse(post, 201);
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Unknown error";
-          return new Response(JSON.stringify({ error: message }), {
-            status: 400,
-            headers: { "content-type": "application/json" },
-          });
+          return errorResponse(error);
         }
       }
-    }
 
-    // Single post operations
-    const postMatch = path.match(/^\/api\/posts\/([^\/]+)$/);
-    if (postMatch) {
-      const postId = postMatch[1];
-
-      if (method === "GET") {
-        const post = await postManager.get(postId);
-        if (!post) {
-          return new Response("Not Found", { status: 404 });
-        }
-        return new Response(JSON.stringify(post), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        });
-      }
-
-      if (method === "PUT") {
+      case "PUT": {
+        if (!postId) return methodNotAllowed();
         try {
           const data = await request.json();
           const post = await postManager.update(postId, data);
-          if (!post) {
-            return new Response("Not Found", { status: 404 });
-          }
-          return new Response(JSON.stringify(post), {
-            status: 200,
-            headers: { "content-type": "application/json" },
-          });
+          return post ? jsonResponse(post) : notFoundResponse();
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Unknown error";
-          return new Response(JSON.stringify({ error: message }), {
-            status: 400,
-            headers: { "content-type": "application/json" },
-          });
+          return errorResponse(error);
         }
       }
 
-      if (method === "DELETE") {
+      case "DELETE": {
+        if (!postId) return methodNotAllowed();
         const deleted = await postManager.delete(postId);
-        if (!deleted) {
-          return new Response("Not Found", { status: 404 });
-        }
-        return new Response(null, { status: 204 });
+        return deleted ? new Response(null, { status: 204 }) : notFoundResponse();
+      }
+
+      default: {
+        return methodNotAllowed();
       }
     }
-
-    // 404 for unknown routes
-    return new Response("Not Found", { status: 404 });
   };
 
   const abortController = new AbortController();
@@ -165,7 +134,7 @@ export function createServer(port: number, postsDir?: string): Server {
     {
       port,
       signal: abortController.signal,
-      onListen: () => {},
+      onListen: () => { },
     },
     handler,
   );
