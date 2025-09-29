@@ -14,15 +14,15 @@ This project is inspired by koaning/draft but built specifically with Deno for i
 <commands>
 <development>
 - `deno run --allow-net --allow-read --allow-write mod.ts` - Start development server
-- `deno test --allow-read --allow-write` - Run all tests
+- `deno task test` - Run all tests
 - `deno fmt` - Format code
 - `deno lint` - Lint code
 - `deno compile --allow-net --allow-read --allow-write --output quickpost mod.ts` - Build single executable
 </development>
 
 <testing>
-- `deno test` - Run unit tests
-- `deno test --coverage` - Run tests with coverage
+- `deno task test` - Run unit tests
+- `deno task test:coverage` - Run tests with coverage
 - Use Deno's built-in testing framework exclusively
 </testing>
 </commands>
@@ -109,7 +109,7 @@ Example progression:
 - Use conventional commits: `feat(editor): add markdown parsing`
 - Commit frequently at logical boundaries
 - Each commit should have passing tests
-- Run `deno fmt && deno lint && deno test` before every commit </commit_strategy>
+- Run `deno fmt && deno lint && deno task test` before every commit </commit_strategy>
   </development_workflow>
 
 <file_organization>
