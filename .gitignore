@@ -37,3 +37,6 @@ quickpost
 
 # Generated assets
 lib/bundled-assets.ts
+
+# serena MCP files
+.serena/
