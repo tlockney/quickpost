@@ -80,15 +80,20 @@ Deno.test("CLI - absolute path resolution", async () => {
     assertEquals(testPost.title, "Test CLI Absolute");
     assertMatch(testPost.id, /test-cli-absolute/);
 
-    // Check that the post was created in the temp directory
-    const postDir = resolve(tempDir, testPost.folder);
-    const stat = await Deno.stat(postDir);
-    assertEquals(stat.isDirectory, true);
+    // Check that the post file was created in the temp directory
+    const postFile = resolve(tempDir, `${testPost.folder}.md`);
+    const stat = await Deno.stat(postFile);
+    assertEquals(stat.isFile, true);
 
-    // Verify post file exists
-    const postFile = resolve(postDir, "post.md");
+    // Verify post file exists and has content
     const postContent = await Deno.readTextFile(postFile);
-    assertEquals(postContent, "# Test CLI Absolute\n\nTesting absolute path behavior.");
+
+    // Content should now include frontmatter
+    assertEquals(
+      postContent.includes("# Test CLI Absolute\n\nTesting absolute path behavior."),
+      true,
+    );
+    assertEquals(postContent.includes("title: Test CLI Absolute"), true);
   } finally {
     // Cleanup
     await Deno.remove(tempDir, { recursive: true });

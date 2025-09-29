@@ -66,11 +66,39 @@ export class PostManager {
     }
   }
 
+  private addDefaultFrontmatter(content: string, title: string, slug: string): string {
+    const { frontmatter, body } = this.parseFrontmatter(content);
+
+    // If content already has frontmatter, return as-is
+    if (Object.keys(frontmatter).length > 0) {
+      return content;
+    }
+
+    // Generate default frontmatter
+    const now = new Date();
+    const publishDate = now.toISOString().replace(/\.\d{3}Z$/, "-07:00"); // Format: 2021-06-08T21:47:59-07:00
+    const isoTimestamp = now.toISOString();
+
+    const defaultFrontmatter = [
+      "---",
+      `title: ${title}`,
+      `slug: ${slug}`,
+      `publishDate: ${publishDate}`,
+      `createdAt: ${isoTimestamp}`,
+      `updatedAt: ${isoTimestamp}`,
+      "draft: true",
+      "---",
+      "",
+    ].join("\n");
+
+    return defaultFrontmatter + body;
+  }
+
   private async slugExists(slug: string): Promise<boolean> {
     try {
-      const postDir = join(this.postsDir, slug);
-      const stat = await Deno.stat(postDir);
-      return stat.isDirectory;
+      const postFile = join(this.postsDir, `${slug}.md`);
+      const stat = await Deno.stat(postFile);
+      return stat.isFile;
     } catch {
       return false;
     }
@@ -79,77 +107,60 @@ export class PostManager {
   async create(data: CreatePostData): Promise<Post> {
     await ensureDir(this.postsDir);
 
-    // Parse frontmatter to check for custom slug
-    const { frontmatter } = this.parseFrontmatter(data.content);
-
-    // Use custom slug from frontmatter, or generate from title
-    const slug = frontmatter.slug || this.generateSlug(data.title);
+    // Generate initial slug from title
+    const initialSlug = this.generateSlug(data.title);
 
     // Ensure slug is unique by adding a number if needed
-    let uniqueSlug = slug;
+    let uniqueSlug = initialSlug;
     let counter = 1;
     while (await this.slugExists(uniqueSlug)) {
-      uniqueSlug = `${slug}-${counter}`;
+      uniqueSlug = `${initialSlug}-${counter}`;
       counter++;
     }
 
-    const folder = uniqueSlug;
-    const postDir = join(this.postsDir, folder);
+    // Add default frontmatter if none exists, using the unique slug
+    const contentWithFrontmatter = this.addDefaultFrontmatter(data.content, data.title, uniqueSlug);
 
-    await ensureDir(postDir);
-    await ensureDir(join(postDir, "images"));
+    const postFile = join(this.postsDir, `${uniqueSlug}.md`);
+    await Deno.writeTextFile(postFile, contentWithFrontmatter);
 
-    const postFile = join(postDir, "post.md");
-    await Deno.writeTextFile(postFile, data.content);
-
-    const now = new Date();
-    const metadata = {
-      id: uniqueSlug, // Use slug as ID for simplicity
-      slug: uniqueSlug,
-      title: data.title,
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
-    };
-
-    const metaFile = join(postDir, "meta.json");
-    await Deno.writeTextFile(metaFile, JSON.stringify(metadata, null, 2));
+    // Parse the final frontmatter to get metadata for return value
+    const { frontmatter } = this.parseFrontmatter(contentWithFrontmatter);
 
     return {
       id: uniqueSlug,
-      folder,
+      folder: uniqueSlug, // Keep for backward compatibility, but it's just the slug now
       title: data.title,
-      content: data.content,
-      createdAt: now,
-      updatedAt: now,
+      content: contentWithFrontmatter,
+      createdAt: new Date(frontmatter.createdAt || new Date().toISOString()),
+      updatedAt: new Date(frontmatter.updatedAt || new Date().toISOString()),
     };
   }
 
   async get(id: string): Promise<Post | null> {
     try {
-      // For slug-based lookup, the ID should match the folder name exactly
-      const postPath = join(this.postsDir, id);
+      const postFile = join(this.postsDir, `${id}.md`);
 
-      // Check if the directory exists
+      // Check if the file exists
       try {
-        const stat = await Deno.stat(postPath);
-        if (!stat.isDirectory) return null;
+        const stat = await Deno.stat(postFile);
+        if (!stat.isFile) return null;
       } catch {
         return null;
       }
 
-      const metaFile = join(postPath, "meta.json");
-      const postFile = join(postPath, "post.md");
-
-      const metadata = JSON.parse(await Deno.readTextFile(metaFile));
       const content = await Deno.readTextFile(postFile);
 
+      // Parse frontmatter to get metadata
+      const { frontmatter } = this.parseFrontmatter(content);
+
       return {
-        id: metadata.id,
-        folder: id,
-        title: metadata.title,
+        id: frontmatter.slug || id,
+        folder: id, // Keep for backward compatibility, but it's just the slug now
+        title: frontmatter.title || "Untitled",
         content,
-        createdAt: new Date(metadata.createdAt),
-        updatedAt: new Date(metadata.updatedAt),
+        createdAt: new Date(frontmatter.createdAt || new Date().toISOString()),
+        updatedAt: new Date(frontmatter.updatedAt || new Date().toISOString()),
       };
     } catch {
       return null;
@@ -163,19 +174,24 @@ export class PostManager {
       const posts: Post[] = [];
 
       for (const entry of entries) {
-        if (entry.isDirectory) {
-          const metaFile = join(this.postsDir, entry.name, "meta.json");
+        if (entry.isFile && entry.name.endsWith(".md")) {
+          const postFile = join(this.postsDir, entry.name);
           try {
-            const metadata = JSON.parse(await Deno.readTextFile(metaFile));
+            const content = await Deno.readTextFile(postFile);
+            const { frontmatter } = this.parseFrontmatter(content);
+
+            // Extract slug from filename (remove .md extension)
+            const slug = entry.name.slice(0, -3);
+
             posts.push({
-              id: metadata.id,
-              folder: entry.name,
-              title: metadata.title,
-              createdAt: new Date(metadata.createdAt),
-              updatedAt: new Date(metadata.updatedAt),
+              id: frontmatter.slug || slug,
+              folder: slug, // Keep for backward compatibility, but it's just the slug now
+              title: frontmatter.title || "Untitled",
+              createdAt: new Date(frontmatter.createdAt || new Date().toISOString()),
+              updatedAt: new Date(frontmatter.updatedAt || new Date().toISOString()),
             });
           } catch {
-            // Skip invalid post directories
+            // Skip invalid post files
           }
         }
       }
@@ -187,48 +203,71 @@ export class PostManager {
     }
   }
 
+  private updateFrontmatterField(content: string, field: string, value: string): string {
+    const { frontmatter, body } = this.parseFrontmatter(content);
+
+    // Update the specific field
+    frontmatter[field] = value;
+
+    // Reconstruct the content with updated frontmatter
+    const frontmatterText = Object.entries(frontmatter)
+      .map(([key, val]) => `${key}: ${val}`)
+      .join("\n");
+
+    return `---\n${frontmatterText}\n---\n${body}`;
+  }
+
   async update(id: string, data: UpdatePostData): Promise<Post | null> {
     const post = await this.get(id);
     if (!post) return null;
 
-    const postPath = join(this.postsDir, post.folder);
+    const postFile = join(this.postsDir, `${id}.md`);
 
+    let updatedContent = post.content!;
+
+    // Update content if provided
     if (data.content !== undefined) {
-      const postFile = join(postPath, "post.md");
-      await Deno.writeTextFile(postFile, data.content);
+      updatedContent = data.content;
     }
 
-    const metaFile = join(postPath, "meta.json");
-    const metadata = JSON.parse(await Deno.readTextFile(metaFile));
-
+    // Update title in frontmatter if provided
     if (data.title !== undefined) {
-      metadata.title = data.title;
+      updatedContent = this.updateFrontmatterField(updatedContent, "title", data.title);
     }
-    metadata.updatedAt = new Date().toISOString();
 
-    await Deno.writeTextFile(metaFile, JSON.stringify(metadata, null, 2));
+    // Always update the updatedAt timestamp
+    const now = new Date().toISOString();
+    updatedContent = this.updateFrontmatterField(updatedContent, "updatedAt", now);
+
+    // Write the updated content back to file
+    await Deno.writeTextFile(postFile, updatedContent);
+
+    // Parse the updated frontmatter to return accurate metadata
+    const { frontmatter } = this.parseFrontmatter(updatedContent);
 
     return {
-      ...post,
-      title: data.title ?? post.title,
-      content: data.content ?? post.content,
-      updatedAt: new Date(metadata.updatedAt),
+      id: post.id,
+      folder: post.folder,
+      title: frontmatter.title || post.title,
+      content: updatedContent,
+      createdAt: post.createdAt,
+      updatedAt: new Date(frontmatter.updatedAt || now),
     };
   }
 
   async delete(id: string): Promise<boolean> {
     try {
-      const postPath = join(this.postsDir, id);
+      const postFile = join(this.postsDir, `${id}.md`);
 
-      // Check if the directory exists
+      // Check if the file exists
       try {
-        const stat = await Deno.stat(postPath);
-        if (!stat.isDirectory) return false;
+        const stat = await Deno.stat(postFile);
+        if (!stat.isFile) return false;
       } catch {
         return false;
       }
 
-      await Deno.remove(postPath, { recursive: true });
+      await Deno.remove(postFile);
       return true;
     } catch {
       return false;

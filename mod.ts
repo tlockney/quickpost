@@ -133,7 +133,7 @@ async function main() {
   console.log(`✨ Ready in ${startupTime.toFixed(0)}ms`);
 
   // Keep the process running
-  await new Promise(() => { });
+  await new Promise(() => {});
 }
 
 if (import.meta.main) {

@@ -16,14 +16,19 @@ Deno.test("PostManager - creates and retrieves a post", async () => {
   assertEquals(post.title, "Test Post");
 
   const retrieved = await manager.get(post.id);
-  assertEquals(retrieved?.content, "# Test Post\n\nThis is a test post.");
+
+  // Content should now include frontmatter
+  assertExists(retrieved?.content);
+  assertEquals(retrieved!.content.includes("# Test Post\n\nThis is a test post."), true);
+  assertEquals(retrieved!.content.includes("title: Test Post"), true);
 
   // Cleanup
   await Deno.remove(TEST_DIR, { recursive: true });
 });
 
 Deno.test("PostManager - lists all posts", async () => {
-  const manager = new PostManager(TEST_DIR);
+  const testDir = "./test_posts_list";
+  const manager = new PostManager(testDir);
 
   await manager.create({ title: "Post 1", content: "Content 1" });
   await manager.create({ title: "Post 2", content: "Content 2" });
@@ -32,7 +37,7 @@ Deno.test("PostManager - lists all posts", async () => {
   assertEquals(posts.length, 2);
 
   // Cleanup
-  await Deno.remove(TEST_DIR, { recursive: true });
+  await Deno.remove(testDir, { recursive: true });
 });
 
 Deno.test("PostManager - updates a post", async () => {
@@ -50,7 +55,56 @@ Deno.test("PostManager - updates a post", async () => {
 
   const updated = await manager.get(post.id);
   assertEquals(updated?.title, "Updated Title");
-  assertEquals(updated?.content, "Updated content");
+
+  // Content should include frontmatter and updated content
+  assertEquals(updated?.content?.includes("Updated content"), true);
+  assertEquals(updated?.content?.includes("title: Updated Title"), true);
+
+  // Cleanup
+  await Deno.remove(TEST_DIR, { recursive: true });
+});
+
+Deno.test("PostManager - creates post with default frontmatter", async () => {
+  const manager = new PostManager(TEST_DIR);
+
+  const post = await manager.create({
+    title: "Test Post",
+    content: "This is a test post without frontmatter.",
+  });
+
+  const retrieved = await manager.get(post.id);
+  assertExists(retrieved?.content);
+
+  // Should have frontmatter added
+  const content = retrieved!.content;
+  assertEquals(content.startsWith("---\n"), true);
+  assertEquals(content.includes("title: Test Post"), true);
+  assertEquals(content.includes("publishDate: "), true);
+  assertEquals(content.includes("draft: true"), true);
+
+  // Should preserve original content after frontmatter
+  assertEquals(content.includes("This is a test post without frontmatter."), true);
+
+  // Cleanup
+  await Deno.remove(TEST_DIR, { recursive: true });
+});
+
+Deno.test("PostManager - preserves existing frontmatter", async () => {
+  const manager = new PostManager(TEST_DIR);
+
+  const post = await manager.create({
+    title: "Test Post",
+    content: "---\ntitle: Custom Title\ndraft: false\n---\n\nCustom content.",
+  });
+
+  const retrieved = await manager.get(post.id);
+  assertExists(retrieved?.content);
+
+  // Should preserve existing frontmatter
+  const content = retrieved!.content;
+  assertEquals(content.includes("title: Custom Title"), true);
+  assertEquals(content.includes("draft: false"), true);
+  assertEquals(content.includes("Custom content."), true);
 
   // Cleanup
   await Deno.remove(TEST_DIR, { recursive: true });

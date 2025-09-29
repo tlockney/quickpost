@@ -119,7 +119,45 @@
         letter-spacing: 1px;
       }
 
-      #editor {
+      .editor-split {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .frontmatter-section {
+        min-height: 120px;
+        max-height: 200px;
+        display: flex;
+        flex-direction: column;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .content-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 200px;
+      }
+
+      .section-header {
+        padding: 8px 20px;
+        background: var(--bg-secondary);
+        font-size: 11px;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        letter-spacing: 1px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .editor-divider {
+        height: 1px;
+        background: var(--border);
+        margin: 0;
+      }
+
+      #frontmatter-editor, #content-editor {
         flex: 1;
         background: var(--bg-primary);
         color: var(--text-primary);
@@ -130,6 +168,22 @@
         line-height: 1.6;
         resize: none;
         outline: none;
+        min-height: 80px;
+      }
+
+      #frontmatter-editor {
+        background: rgba(74, 158, 255, 0.03);
+        font-size: 13px;
+      }
+
+      #frontmatter-editor::placeholder {
+        color: var(--text-secondary);
+        opacity: 0.7;
+      }
+
+      #content-editor::placeholder {
+        color: var(--text-secondary);
+        opacity: 0.5;
       }
 
       #preview {
@@ -264,6 +318,13 @@
           border-right: none;
           border-bottom: 1px solid var(--border);
         }
+        .frontmatter-section {
+          min-height: 100px;
+          max-height: 150px;
+        }
+        .content-section {
+          min-height: 150px;
+        }
       }
 
       /* Override Prism theme to remove brown border and improve styling */
@@ -312,9 +373,22 @@
     <div class="container">
       <div class="editor-pane">
         <div class="pane-header">Markdown</div>
-        <textarea
-          id="editor"
-          placeholder="Start writing in markdown...
+        <div class="editor-split">
+          <div class="frontmatter-section">
+            <div class="section-header">Frontmatter</div>
+            <textarea
+              id="frontmatter-editor"
+              placeholder="title: Post Title
+publishDate: 2025-01-01T00:00:00-07:00
+draft: true"
+            ></textarea>
+          </div>
+          <div class="editor-divider"></div>
+          <div class="content-section">
+            <div class="section-header">Content</div>
+            <textarea
+              id="content-editor"
+              placeholder="Start writing in markdown...
 
 # Heading 1
 ## Heading 2
@@ -339,7 +413,9 @@ console.log('Hello, World!');
 | Column 1 | Column 2 |
 |----------|----------|
 | Cell 1   | Cell 2   |"
-        ></textarea>
+            ></textarea>
+          </div>
+        </div>
       </div>
       <div class="preview-pane">
         <div class="pane-header">Preview</div>
@@ -382,13 +458,56 @@ console.log('Hello, World!');
         return temp.innerHTML;
       }
 
+      // Get combined content from both editors
+      function getCombinedContent() {
+        const frontmatterEditor = document.getElementById("frontmatter-editor");
+        const contentEditor = document.getElementById("content-editor");
+
+        const frontmatter = frontmatterEditor.value.trim();
+        const content = contentEditor.value;
+
+        if (!frontmatter) {
+          return content;
+        }
+
+        return `---\n${frontmatter}\n---\n${content}`;
+      }
+
+      // Split content into frontmatter and body
+      function splitContent(fullContent) {
+        const { frontmatter, body } = parseFrontmatter(fullContent);
+
+        // Convert frontmatter object back to YAML string
+        let frontmatterText = "";
+        if (Object.keys(frontmatter).length > 0) {
+          frontmatterText = Object.entries(frontmatter)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join("\n");
+        }
+
+        return { frontmatterText, bodyText: body };
+      }
+
+      // Update editors with content
+      function updateEditors(fullContent) {
+        const frontmatterEditor = document.getElementById("frontmatter-editor");
+        const contentEditor = document.getElementById("content-editor");
+
+        const { frontmatterText, bodyText } = splitContent(fullContent);
+
+        frontmatterEditor.value = frontmatterText;
+        contentEditor.value = bodyText;
+      }
+
       // Update preview
       function updatePreview() {
-        const editor = document.getElementById("editor");
         const preview = document.getElementById("preview");
+        const fullContent = getCombinedContent();
 
         try {
-          const html = marked.parse(editor.value);
+          // Parse frontmatter and only render the body content in preview
+          const { frontmatter, body } = parseFrontmatter(fullContent);
+          const html = marked.parse(body);
           preview.innerHTML = sanitizeHtml(html);
 
           // Handle task list checkboxes
@@ -419,7 +538,7 @@ console.log('Hello, World!');
 
       // Update status bar
       function updateStatus() {
-        const text = document.getElementById("editor").value;
+        const text = getCombinedContent();
         const words = text.trim().split(/\s+/).filter((w) => w.length > 0).length;
         const chars = text.length;
 
@@ -450,7 +569,7 @@ console.log('Hello, World!');
 
       // Update title field based on content
       function updateTitleField() {
-        const content = document.getElementById("editor").value;
+        const content = getCombinedContent();
         const titleInput = document.getElementById("titleInput");
         const extractedTitle = extractTitle(content);
 
@@ -495,7 +614,7 @@ console.log('Hello, World!');
 
       // Save post
       async function savePost() {
-        const content = document.getElementById("editor").value;
+        const content = getCombinedContent();
         const titleInput = document.getElementById("titleInput");
 
         // Use title from title field if available, otherwise extract from content
@@ -527,7 +646,7 @@ console.log('Hello, World!');
 
       // Export post
       async function exportPost() {
-        const content = document.getElementById("editor").value;
+        const content = getCombinedContent();
         const blob = new Blob([content], { type: "text/markdown" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -539,29 +658,37 @@ console.log('Hello, World!');
 
       // Initialize
       document.addEventListener("DOMContentLoaded", () => {
-        const editor = document.getElementById("editor");
+        const frontmatterEditor = document.getElementById("frontmatter-editor");
+        const contentEditor = document.getElementById("content-editor");
 
-        // Update preview on input with debouncing
+        // Update preview on input with debouncing for both editors
         let debounceTimer;
-        editor.addEventListener("input", () => {
+        function handleEditorInput() {
           clearTimeout(debounceTimer);
           debounceTimer = setTimeout(updatePreview, 100);
-        });
+        }
 
-        // Save shortcut (Cmd/Ctrl + S)
-        editor.addEventListener("keydown", (e) => {
+        frontmatterEditor.addEventListener("input", handleEditorInput);
+        contentEditor.addEventListener("input", handleEditorInput);
+
+        // Save shortcut (Cmd/Ctrl + S) for both editors
+        function handleKeydown(e) {
           if ((e.metaKey || e.ctrlKey) && e.key === "s") {
             e.preventDefault();
             savePost();
           }
-        });
+        }
+
+        frontmatterEditor.addEventListener("keydown", handleKeydown);
+        contentEditor.addEventListener("keydown", handleKeydown);
 
         // Button handlers
         document.getElementById("saveBtn").addEventListener("click", savePost);
         document.getElementById("exportBtn").addEventListener("click", exportPost);
         document.getElementById("newBtn").addEventListener("click", () => {
           if (confirm("Create a new post? Unsaved changes will be lost.")) {
-            editor.value = "";
+            frontmatterEditor.value = "";
+            contentEditor.value = "";
             document.getElementById("titleInput").value = "";
             window.currentPostId = null;
             updatePreview();
@@ -580,18 +707,18 @@ console.log('Hello, World!');
 
         // Auto-save draft to localStorage
         setInterval(() => {
-          localStorage.setItem("quickpost-draft", editor.value);
+          localStorage.setItem("quickpost-draft", getCombinedContent());
         }, 5000);
 
         // Restore draft
         const draft = localStorage.getItem("quickpost-draft");
         if (draft) {
-          editor.value = draft;
+          updateEditors(draft);
           updatePreview();
         }
 
-        // Focus editor
-        editor.focus();
+        // Focus content editor by default
+        contentEditor.focus();
       });
     </script>
   </body>

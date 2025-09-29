@@ -29,7 +29,8 @@
     "rules": {
       "tags": ["recommended"],
       "exclude": ["no-explicit-any"]
-    }
+    },
+    "exclude": ["static/*.min.js"]
   },
   "fmt": {
     "indentWidth": 2,
