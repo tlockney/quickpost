@@ -11,8 +11,9 @@ A lightweight, local web-based markdown editor built with Deno for rapid blog po
 - **Auto title extraction** - Smart title detection from content or frontmatter
 - **Editable title field** - Seamless in-place title editing
 - **Dark theme interface** - Optimized for distraction-free writing
-- **Single executable** - Distributes as one file with no dependencies
+- **Standalone binary** - True single-file distribution with bundled assets (~741KB)
 - **Completely offline** - No external network requests or CDNs
+- **Asset bundling** - All static resources embedded in executable for portability
 
 ## Quick Start
 
@@ -30,14 +31,12 @@ A lightweight, local web-based markdown editor built with Deno for rapid blog po
 
 2. **Run the development server**
    ```bash
-   # Use default posts directory (current directory + "/posts")
-   deno run --allow-net --allow-read --allow-write mod.ts
+   # Use convenient task commands
+   deno task dev    # Start with watch mode
+   deno task start  # Start production mode
 
-   # Or specify a custom posts directory
+   # Or run directly with custom posts directory
    deno run --allow-net --allow-read --allow-write mod.ts /path/to/your/posts
-
-   # Or use a relative path
-   deno run --allow-net --allow-read --allow-write mod.ts ../blog-posts
    ```
 
 3. **Open your browser**
@@ -45,17 +44,25 @@ A lightweight, local web-based markdown editor built with Deno for rapid blog po
    - Start writing immediately in the markdown editor
    - See live preview with syntax highlighting
 
-### Build Single Executable
+### Build Standalone Binary
 
 ```bash
-deno compile --allow-net --allow-read --allow-write --output quickpost mod.ts
+# Build with bundled assets (recommended for distribution)
+deno task build
 
-# Run with default directory
-./quickpost
+# Or compile without bundling (development mode)
+deno task compile
 
-# Run with custom directory
-./quickpost /path/to/your/posts
+# Run standalone binary
+./quickpost                    # Use default posts directory
+./quickpost /path/to/posts     # Use custom directory
 ```
+
+The `deno task build` command:
+
+1. Bundles all static assets (HTML, CSS, JS) into the binary
+2. Creates a truly portable executable with no external dependencies
+3. Results in a ~741KB standalone file
 
 ## Usage
 
@@ -164,36 +171,48 @@ Create a `config.json` file to customize settings:
 
 ```
 quickpost/
-├── mod.ts              # CLI entry point and server launcher
-├── server.ts           # HTTP server and routing logic
+├── mod.ts                      # CLI entry point and server launcher
+├── server.ts                   # HTTP server with asset bundling support
+├── deno.json                   # Deno configuration and tasks
 ├── lib/
-│   ├── posts.ts        # Post file operations
-│   ├── markdown.ts     # Markdown processing
-│   └── *_test.ts       # Test files
+│   ├── posts.ts               # Post file operations
+│   ├── markdown.ts            # Markdown processing
+│   ├── bundled-assets.ts      # Generated bundled assets (gitignored)
+│   └── *_test.ts              # Test files
+├── scripts/
+│   └── bundle-assets.ts       # Asset bundler for standalone binary
 ├── static/
-│   └── index.html      # Single-page application
-├── deno.json           # Deno configuration
-└── README.md           # This file
+│   ├── index.html             # Main application interface
+│   ├── marked.min.js          # Markdown parser
+│   ├── prism*.min.js          # Syntax highlighting
+│   └── prism-dark.css         # Dark theme styles
+├── posts/                     # Default blog post storage
+├── .gitignore                 # Git ignore patterns
+└── README.md                  # This file
 ```
 
 ### Running Tests
 
 ```bash
-# Run all tests
-deno test --allow-read --allow-write
+# Use task commands (recommended)
+deno task test              # Run all tests
+deno task test:watch        # Run tests in watch mode
+deno task test:coverage     # Run tests with coverage
 
-# Run tests with coverage
-deno test --allow-read --allow-write --coverage
+# Or run directly
+deno test --allow-read --allow-write --allow-env --allow-sys --allow-net
 ```
 
 ### Code Quality
 
 ```bash
-# Format code
-deno fmt
+# Use task commands
+deno task fmt     # Format code
+deno task lint    # Lint code
+deno task check   # Type check
 
-# Lint code
-deno lint
+# Asset bundling
+deno task bundle  # Generate bundled assets
 ```
 
 ## Technical Details
@@ -210,9 +229,10 @@ deno lint
 ### Performance
 
 - **Startup time**: < 1 second from command to browser
-- **Bundle size**: Single executable under 50MB
+- **Binary size**: ~741KB standalone executable with all assets bundled
 - **Memory usage**: Minimal overhead, scales with content
 - **Preview latency**: < 50ms from keystroke to preview update
+- **Asset loading**: Instant (embedded in binary) vs filesystem reads in dev mode
 
 ### Browser Support
 
@@ -237,7 +257,8 @@ deno lint
 - Add tests for new functionality
 - Use conventional commit messages
 - Maintain sub-second startup time
-- Keep bundle size minimal
+- Use `deno task build` for distribution builds
+- Test both development and standalone binary modes
 
 ## License
 

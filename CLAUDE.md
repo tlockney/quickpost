@@ -57,6 +57,7 @@ This project is inspired by koaning/draft but built specifically with Deno for i
 <performance_requirements critical="true">
 
 - **Startup Time**: Sub-second from CLI command to browser
+- **Binary Size**: ~741KB standalone executable with all assets embedded
 - **Typing Lag**: No perceptible lag during typing
 - **Preview Updates**: <50ms from keystroke to preview update
 - **Memory Usage**: Minimal - single executable with low overhead </performance_requirements>

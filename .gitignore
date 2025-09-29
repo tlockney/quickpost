@@ -34,3 +34,6 @@ Thumbs.db
 dist/
 build/
 quickpost
+
+# Generated assets
+lib/bundled-assets.ts

@@ -1,5 +1,15 @@
 import { PostManager } from "./lib/posts.ts";
 
+// Try to import bundled assets if available
+let bundledAssets: {
+  getAsset?: (path: string) => { content: string; isBinary: boolean } | undefined;
+} = {};
+try {
+  bundledAssets = await import("./lib/bundled-assets.ts");
+} catch {
+  // Bundled assets not available, will use filesystem
+}
+
 function getContentType(path: string): string {
   const ext = path.split(".").pop()?.toLowerCase();
   switch (ext) {
@@ -64,8 +74,37 @@ export function createServer(port: number, postsDir?: string): Server {
     // Serve static files
     if (!path.startsWith("/api/")) {
       const staticPath = path === "/" ? "/index.html" : path;
-      const filePath = `./static${staticPath}`;
 
+      // Try bundled assets first
+      if (bundledAssets.getAsset) {
+        const asset = bundledAssets.getAsset(
+          staticPath.startsWith("/") ? staticPath.slice(1) : staticPath,
+        );
+        if (asset) {
+          const contentType = getContentType(staticPath);
+
+          if (asset.isBinary) {
+            // Convert base64 back to binary
+            const binaryString = atob(asset.content);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            return new Response(bytes, {
+              status: 200,
+              headers: { "content-type": contentType },
+            });
+          } else {
+            return new Response(asset.content, {
+              status: 200,
+              headers: { "content-type": contentType },
+            });
+          }
+        }
+      }
+
+      // Fall back to filesystem
+      const filePath = `./static${staticPath}`;
       try {
         const fileContent = await Deno.readFile(filePath);
         const contentType = getContentType(staticPath);
@@ -134,7 +173,7 @@ export function createServer(port: number, postsDir?: string): Server {
     {
       port,
       signal: abortController.signal,
-      onListen: () => { },
+      onListen: () => {},
     },
     handler,
   );
