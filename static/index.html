@@ -93,6 +93,26 @@
         opacity: 0.9;
       }
 
+      .posts-selector {
+        margin: 0 10px;
+      }
+
+      .posts-selector select {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        color: var(--text-primary);
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-family: inherit;
+        font-size: 14px;
+        min-width: 200px;
+      }
+
+      .posts-selector select:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+
       .container {
         display: flex;
         flex: 1;
@@ -364,6 +384,11 @@
           placeholder="Post title (auto-extracted from content)"
           class="title-input-header"
         />
+      </div>
+      <div class="posts-selector">
+        <select id="postsDropdown">
+          <option value="">Select existing post...</option>
+        </select>
       </div>
       <button id="newBtn">New Post</button>
       <button id="saveBtn">Save</button>
@@ -668,6 +693,76 @@ console.log('Hello, World!');
         URL.revokeObjectURL(url);
       }
 
+      // Load posts into dropdown
+      async function loadPostsList() {
+        try {
+          const response = await fetch("/api/posts");
+          if (response.ok) {
+            const posts = await response.json();
+            const dropdown = document.getElementById("postsDropdown");
+
+            // Clear existing options except the first one
+            dropdown.innerHTML = '<option value="">Select existing post...</option>';
+
+            // Add posts as options
+            posts.forEach((post) => {
+              const option = document.createElement("option");
+              option.value = post.id;
+              option.textContent = post.title || "Untitled";
+              dropdown.appendChild(option);
+            });
+          }
+        } catch (error) {
+          console.error("Failed to load posts:", error);
+        }
+      }
+
+      // Load selected post into editor
+      async function loadPost(postId) {
+        if (!postId) {
+          // Clear editors if no post selected
+          clearEditors();
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/posts/${postId}`);
+          if (response.ok) {
+            const post = await response.json();
+
+            // Set current post ID
+            window.currentPostId = post.id;
+
+            // Update title field
+            document.getElementById("titleInput").value = post.title || "";
+
+            // Load content into editors
+            updateEditors(post.content || "");
+
+            // Update preview
+            updatePreview();
+
+            document.getElementById("status").textContent = "Post loaded";
+            setTimeout(() => {
+              document.getElementById("status").textContent = "Ready";
+            }, 2000);
+          }
+        } catch (error) {
+          console.error("Failed to load post:", error);
+          document.getElementById("status").textContent = "Error loading post";
+        }
+      }
+
+      // Clear editors for new post
+      function clearEditors() {
+        document.getElementById("frontmatter-editor").value = "";
+        document.getElementById("content-editor").value = "";
+        document.getElementById("titleInput").value = "";
+        document.getElementById("postsDropdown").value = "";
+        window.currentPostId = null;
+        updatePreview();
+      }
+
       // Initialize
       document.addEventListener("DOMContentLoaded", () => {
         const frontmatterEditor = document.getElementById("frontmatter-editor");
@@ -699,12 +794,13 @@ console.log('Hello, World!');
         document.getElementById("exportBtn").addEventListener("click", exportPost);
         document.getElementById("newBtn").addEventListener("click", () => {
           if (confirm("Create a new post? Unsaved changes will be lost.")) {
-            frontmatterEditor.value = "";
-            contentEditor.value = "";
-            document.getElementById("titleInput").value = "";
-            window.currentPostId = null;
-            updatePreview();
+            clearEditors();
           }
+        });
+
+        // Posts dropdown handler
+        document.getElementById("postsDropdown").addEventListener("change", (e) => {
+          loadPost(e.target.value);
         });
 
         // Title field event listeners
@@ -731,6 +827,9 @@ console.log('Hello, World!');
 
         // Focus content editor by default
         contentEditor.focus();
+
+        // Initialize the page
+        loadPostsList();
       });
     </script>
   </body>
