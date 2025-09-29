@@ -1,7 +1,7 @@
 {
   "tasks": {
     "dev": "deno run --watch --allow-net --allow-read --allow-write mod.ts",
-    "start": "deno run --allow-net --allow-read --allow-write mod.ts",
+    "start": "deno run --allow-net --allow-read --allow-write --allow-run mod.ts",
     "test": "deno test --allow-read --allow-write --allow-env --allow-sys --allow-net",
     "test:watch": "deno test --watch --allow-read --allow-write --allow-env --allow-sys --allow-net",
     "test:coverage": "deno test --coverage --allow-read --allow-write --allow-env --allow-sys --allow-net",
@@ -9,8 +9,8 @@
     "lint": "deno lint",
     "check": "deno check **/*.ts",
     "bundle": "deno run --allow-read --allow-write scripts/bundle-assets.ts",
-    "build": "deno task bundle && deno compile --allow-net --allow-read --allow-write --output=quickpost mod.ts",
-    "compile": "deno compile --allow-net --allow-read --allow-write --output=quickpost mod.ts"
+    "build": "deno task bundle && deno compile --allow-net --allow-read --allow-write --allow-run --output=quickpost mod.ts",
+    "compile": "deno compile --allow-net --allow-read --allow-write --allow-run --output=quickpost mod.ts"
   },
   "compilerOptions": {
     "strict": true,

@@ -37,8 +37,15 @@ A lightweight, local web-based markdown editor built with Deno for rapid blog po
    deno task dev    # Start with watch mode
    deno task start  # Start production mode
 
-   # Or run directly with custom posts directory
-   deno run --allow-net --allow-read --allow-write mod.ts /path/to/your/posts
+   # Or run directly with options
+   deno run --allow-net --allow-read --allow-write --allow-run mod.ts [OPTIONS] [POSTS_DIRECTORY]
+
+   # Examples:
+   ./quickpost --help                        # Show help
+   ./quickpost                               # Use default settings
+   ./quickpost --port 8080                   # Custom port
+   ./quickpost --no-open ./my-blog          # Custom directory, no browser
+   ./quickpost -p 3000 ~/Documents/posts    # Short flags
    ```
 
 3. **Open your browser**
