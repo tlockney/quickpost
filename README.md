@@ -11,9 +11,11 @@ A lightweight, local web-based markdown editor built with Deno for rapid blog po
 - **Auto title extraction** - Smart title detection from content or frontmatter
 - **Editable title field** - Seamless in-place title editing
 - **Dark theme interface** - Optimized for distraction-free writing
-- **Standalone binary** - True single-file distribution with bundled assets (~741KB)
+- **Standalone binary** - True single-file distribution with bundled assets
 - **Completely offline** - No external network requests or CDNs
 - **Asset bundling** - All static resources embedded in executable for portability
+- **Syntax highlighting** - Support for TypeScript, JavaScript, Python, SQL, Markdown, Bash, JSON,
+  Lua, Go, Rust, Java, Docker, and YAML
 
 ## Quick Start
 
@@ -62,7 +64,7 @@ The `deno task build` command:
 
 1. Bundles all static assets (HTML, CSS, JS) into the binary
 2. Creates a truly portable executable with no external dependencies
-3. Results in a ~741KB standalone file
+3. Results in a single standalone executable file
 
 ## Usage
 
@@ -222,14 +224,15 @@ deno task bundle  # Generate bundled assets
 - **Backend**: Deno runtime with TypeScript
 - **Frontend**: Vanilla JavaScript (no frameworks)
 - **Markdown**: Marked.js library with GitHub Flavored Markdown
-- **Syntax highlighting**: Prism.js with multiple language support
+- **Syntax highlighting**: Prism.js with support for TypeScript, JavaScript, Python, SQL, Markdown,
+  Bash, JSON, Lua, Go, Rust, Java, Docker, and YAML
 - **Storage**: Local filesystem with JSON metadata
 - **Styling**: CSS custom properties with dark theme
 
 ### Performance
 
 - **Startup time**: < 1 second from command to browser
-- **Binary size**: ~741KB standalone executable with all assets bundled
+- **Binary size**: Standalone executable with all assets and language support bundled
 - **Memory usage**: Minimal overhead, scales with content
 - **Preview latency**: < 50ms from keystroke to preview update
 - **Asset loading**: Instant (embedded in binary) vs filesystem reads in dev mode
