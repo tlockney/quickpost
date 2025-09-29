@@ -227,7 +227,26 @@ export class PostManager {
 
     // Update content if provided
     if (data.content !== undefined) {
-      updatedContent = data.content;
+      // Parse both the existing and new content
+      const existingParsed = this.parseFrontmatter(post.content!);
+      const newParsed = this.parseFrontmatter(data.content);
+
+      // Preserve important fields from existing frontmatter
+      const preservedFields = ["slug", "publishDate", "createdAt", "draft"];
+      for (const field of preservedFields) {
+        if (existingParsed.frontmatter[field] && !newParsed.frontmatter[field]) {
+          newParsed.frontmatter[field] = existingParsed.frontmatter[field];
+        }
+      }
+
+      // Reconstruct content with preserved frontmatter
+      const frontmatterText = Object.entries(newParsed.frontmatter)
+        .map(([key, val]) => `${key}: ${val}`)
+        .join("\n");
+
+      updatedContent = newParsed.frontmatter && Object.keys(newParsed.frontmatter).length > 0
+        ? `---\n${frontmatterText}\n---\n${newParsed.body}`
+        : newParsed.body;
     }
 
     // Update title in frontmatter if provided
