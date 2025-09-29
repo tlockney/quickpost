@@ -742,6 +742,11 @@ console.log('Hello, World!');
             // Update preview
             updatePreview();
 
+            // Ensure content editor has focus after loading
+            setTimeout(() => {
+              contentEditor.focus();
+            }, 50);
+
             document.getElementById("status").textContent = "Post loaded";
             setTimeout(() => {
               document.getElementById("status").textContent = "Ready";
@@ -778,16 +783,18 @@ console.log('Hello, World!');
         frontmatterEditor.addEventListener("input", handleEditorInput);
         contentEditor.addEventListener("input", handleEditorInput);
 
-        // Save shortcut (Cmd/Ctrl + S) for both editors
-        function handleKeydown(e) {
+        // Save shortcut (Cmd/Ctrl + S) - simplified and robust
+        function handleSaveShortcut(e) {
           if ((e.metaKey || e.ctrlKey) && e.key === "s") {
             e.preventDefault();
+            e.stopPropagation();
             savePost();
+            return false;
           }
         }
 
-        frontmatterEditor.addEventListener("keydown", handleKeydown);
-        contentEditor.addEventListener("keydown", handleKeydown);
+        // Single document-level handler that should catch all cases
+        document.addEventListener("keydown", handleSaveShortcut, true);
 
         // Button handlers
         document.getElementById("saveBtn").addEventListener("click", savePost);
@@ -799,8 +806,14 @@ console.log('Hello, World!');
         });
 
         // Posts dropdown handler
-        document.getElementById("postsDropdown").addEventListener("change", (e) => {
+        const postsDropdown = document.getElementById("postsDropdown");
+        postsDropdown.addEventListener("change", (e) => {
           loadPost(e.target.value);
+          // Simple focus management - blur dropdown, focus content editor
+          setTimeout(() => {
+            e.target.blur();
+            contentEditor.focus();
+          }, 100);
         });
 
         // Title field event listeners
