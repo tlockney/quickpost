@@ -624,11 +624,23 @@ console.log('Hello, World!');
         }
 
         try {
-          const response = await fetch("/api/posts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ title, content }),
-          });
+          let response;
+
+          if (window.currentPostId) {
+            // Update existing post
+            response = await fetch(`/api/posts/${window.currentPostId}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ title, content }),
+            });
+          } else {
+            // Create new post
+            response = await fetch("/api/posts", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ title, content }),
+            });
+          }
 
           if (response.ok) {
             const post = await response.json();
