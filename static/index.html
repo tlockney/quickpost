@@ -671,6 +671,10 @@ console.log('Hello, World!');
             const post = await response.json();
             document.getElementById("status").textContent = "Saved";
             window.currentPostId = post.id;
+
+            // Clear draft from localStorage since post is now saved
+            localStorage.removeItem("quickpost-draft");
+
             setTimeout(() => {
               document.getElementById("status").textContent = "Ready";
             }, 2000);
@@ -711,6 +715,13 @@ console.log('Hello, World!');
               option.textContent = post.title || "Untitled";
               dropdown.appendChild(option);
             });
+
+            // Auto-load the most recent post if any exist
+            if (posts.length > 0) {
+              const mostRecentPost = posts[0]; // Posts are sorted newest first
+              dropdown.value = mostRecentPost.id;
+              await loadPost(mostRecentPost.id);
+            }
           }
         } catch (error) {
           console.error("Failed to load posts:", error);
@@ -826,17 +837,47 @@ console.log('Hello, World!');
         // Initial update
         updatePreview();
 
-        // Auto-save draft to localStorage
+        // Auto-save draft to localStorage (only if no current post)
         setInterval(() => {
-          localStorage.setItem("quickpost-draft", getCombinedContent());
+          if (!window.currentPostId) {
+            const content = getCombinedContent();
+            if (content.trim()) {
+              localStorage.setItem("quickpost-draft", content);
+              const now = new Date();
+              const timeStr = now.toLocaleTimeString();
+              document.getElementById("status").textContent = `Draft saved at ${timeStr}`;
+              setTimeout(() => {
+                document.getElementById("status").textContent = "Ready";
+              }, 2000);
+            }
+          }
         }, 5000);
 
-        // Restore draft
-        const draft = localStorage.getItem("quickpost-draft");
-        if (draft) {
-          updateEditors(draft);
-          updatePreview();
-        }
+        // Restore draft only if we don't load a post
+        // loadPostsList will handle loading existing posts
+        const checkAndRestoreDraft = async () => {
+          // Wait a bit for loadPostsList to complete
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          // Only restore draft if no post was loaded
+          if (!window.currentPostId) {
+            const draft = localStorage.getItem("quickpost-draft");
+            if (draft && draft.trim()) {
+              const restore = confirm("Found unsaved draft. Would you like to restore it?");
+              if (restore) {
+                updateEditors(draft);
+                updatePreview();
+              } else {
+                localStorage.removeItem("quickpost-draft");
+              }
+            }
+          }
+        };
+        checkAndRestoreDraft();
+
+        // Image upload functionality removed from UI
+        // The backend API endpoint POST /api/posts/:id/upload is still available
+        // for future implementation with a different UI approach
 
         // Focus content editor by default
         contentEditor.focus();

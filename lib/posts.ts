@@ -1,6 +1,16 @@
 import { ensureDir } from "jsr:@std/fs@1";
 import { join, resolve } from "jsr:@std/path@1";
 
+export interface Frontmatter {
+  title?: string;
+  slug?: string;
+  publishDate?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  draft?: string | boolean;
+  [key: string]: unknown;
+}
+
 export interface Post {
   id: string;
   folder: string;
@@ -38,7 +48,7 @@ export class PostManager {
       .slice(0, 60); // Allow longer slugs
   }
 
-  private parseFrontmatter(content: string): { frontmatter: Record<string, any>; body: string } {
+  private parseFrontmatter(content: string): { frontmatter: Frontmatter; body: string } {
     const frontmatterRegex = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
     const match = content.match(frontmatterRegex);
 
@@ -48,7 +58,7 @@ export class PostManager {
 
     try {
       const frontmatterText = match[1];
-      const frontmatter: Record<string, any> = {};
+      const frontmatter: Frontmatter = {};
 
       // Simple YAML-like parsing for basic key: value pairs
       frontmatterText.split("\n").forEach((line) => {
@@ -287,6 +297,58 @@ export class PostManager {
       }
 
       await Deno.remove(postFile);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private getImagesDir(postId: string): string {
+    return join(this.postsDir, "images", postId);
+  }
+
+  async uploadImage(postId: string, imageData: Uint8Array, extension: string): Promise<string> {
+    // Verify post exists
+    const post = await this.get(postId);
+    if (!post) {
+      throw new Error(`Post with id ${postId} not found`);
+    }
+
+    // Create images directory for this post
+    const imagesDir = this.getImagesDir(postId);
+    await ensureDir(imagesDir);
+
+    // Generate UUID for image filename
+    const uuid = crypto.randomUUID();
+    const filename = `${uuid}.${extension}`;
+    const imagePath = join(imagesDir, filename);
+
+    // Write image file
+    await Deno.writeFile(imagePath, imageData);
+
+    // Return relative path for markdown
+    return `images/${postId}/${filename}`;
+  }
+
+  async listImages(postId: string): Promise<string[]> {
+    const imagesDir = this.getImagesDir(postId);
+
+    try {
+      await Deno.stat(imagesDir);
+    } catch {
+      return [];
+    }
+
+    const entries = await Array.fromAsync(Deno.readDir(imagesDir));
+    return entries
+      .filter((entry) => entry.isFile)
+      .map((entry) => `images/${postId}/${entry.name}`);
+  }
+
+  async deleteImage(postId: string, filename: string): Promise<boolean> {
+    try {
+      const imagePath = join(this.postsDir, "images", postId, filename);
+      await Deno.remove(imagePath);
       return true;
     } catch {
       return false;

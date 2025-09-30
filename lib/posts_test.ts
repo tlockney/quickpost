@@ -130,3 +130,208 @@ Deno.test("PostManager - deletes a post", async () => {
     // Directory might already be empty
   }
 });
+
+Deno.test("PostManager - uploads an image", async () => {
+  const testDir = "./test_posts_images";
+  const manager = new PostManager(testDir);
+
+  // Create a post first
+  const post = await manager.create({
+    title: "Post with Image",
+    content: "Post content",
+  });
+
+  // Create a simple 1x1 PNG image (smallest valid PNG)
+  const pngData = new Uint8Array([
+    0x89,
+    0x50,
+    0x4E,
+    0x47,
+    0x0D,
+    0x0A,
+    0x1A,
+    0x0A,
+    0x00,
+    0x00,
+    0x00,
+    0x0D,
+    0x49,
+    0x48,
+    0x44,
+    0x52,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    0x08,
+    0x06,
+    0x00,
+    0x00,
+    0x00,
+    0x1F,
+    0x15,
+    0xC4,
+    0x89,
+    0x00,
+    0x00,
+    0x00,
+    0x0A,
+    0x49,
+    0x44,
+    0x41,
+    0x54,
+    0x78,
+    0x9C,
+    0x63,
+    0x00,
+    0x01,
+    0x00,
+    0x00,
+    0x05,
+    0x00,
+    0x01,
+    0x0D,
+    0x0A,
+    0x2D,
+    0xB4,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x49,
+    0x45,
+    0x4E,
+    0x44,
+    0xAE,
+    0x42,
+    0x60,
+    0x82,
+  ]);
+
+  const imagePath = await manager.uploadImage(post.id, pngData, "png");
+
+  // Verify path format
+  assertEquals(imagePath.startsWith("images/"), true);
+  assertEquals(imagePath.includes(post.id), true);
+  assertEquals(imagePath.endsWith(".png"), true);
+
+  // Verify image was written
+  const images = await manager.listImages(post.id);
+  assertEquals(images.length, 1);
+  assertEquals(images[0], imagePath);
+
+  // Cleanup
+  await Deno.remove(testDir, { recursive: true });
+});
+
+Deno.test("PostManager - lists images for a post", async () => {
+  const testDir = "./test_posts_list_images";
+  const manager = new PostManager(testDir);
+
+  // Create a post
+  const post = await manager.create({
+    title: "Post with Images",
+    content: "Content",
+  });
+
+  // Upload multiple images
+  const pngData = new Uint8Array([
+    0x89,
+    0x50,
+    0x4E,
+    0x47,
+    0x0D,
+    0x0A,
+    0x1A,
+    0x0A,
+    0x00,
+    0x00,
+    0x00,
+    0x0D,
+    0x49,
+    0x48,
+    0x44,
+    0x52,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    0x08,
+    0x06,
+    0x00,
+    0x00,
+    0x00,
+    0x1F,
+    0x15,
+    0xC4,
+    0x89,
+    0x00,
+    0x00,
+    0x00,
+    0x0A,
+    0x49,
+    0x44,
+    0x41,
+    0x54,
+    0x78,
+    0x9C,
+    0x63,
+    0x00,
+    0x01,
+    0x00,
+    0x00,
+    0x05,
+    0x00,
+    0x01,
+    0x0D,
+    0x0A,
+    0x2D,
+    0xB4,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x49,
+    0x45,
+    0x4E,
+    0x44,
+    0xAE,
+    0x42,
+    0x60,
+    0x82,
+  ]);
+
+  await manager.uploadImage(post.id, pngData, "png");
+  await manager.uploadImage(post.id, pngData, "png");
+
+  const images = await manager.listImages(post.id);
+  assertEquals(images.length, 2);
+
+  // Cleanup
+  await Deno.remove(testDir, { recursive: true });
+});
+
+Deno.test("PostManager - returns empty array for post with no images", async () => {
+  const testDir = "./test_posts_no_images";
+  const manager = new PostManager(testDir);
+
+  // Create a post
+  const post = await manager.create({
+    title: "Post without Images",
+    content: "Content",
+  });
+
+  const images = await manager.listImages(post.id);
+  assertEquals(images.length, 0);
+
+  // Cleanup
+  await Deno.remove(testDir, { recursive: true });
+});

@@ -1,4 +1,5 @@
 import { PostManager } from "./lib/posts.ts";
+import { join } from "jsr:@std/path@1";
 
 // Try to import bundled assets if available
 let bundledAssets: {
@@ -75,6 +76,22 @@ export function createServer(port: number, postsDir?: string): Server {
     if (!path.startsWith("/api/")) {
       const staticPath = path === "/" ? "/index.html" : path;
 
+      // Check if requesting an uploaded image
+      if (staticPath.startsWith("/images/")) {
+        try {
+          const imagePath = join(postsDir || "posts", staticPath.slice(1));
+          const imageData = await Deno.readFile(imagePath);
+          const contentType = getContentType(staticPath);
+
+          return new Response(imageData, {
+            status: 200,
+            headers: { "content-type": contentType },
+          });
+        } catch {
+          return notFoundResponse();
+        }
+      }
+
       // Try bundled assets first
       if (bundledAssets.getAsset) {
         const asset = bundledAssets.getAsset(
@@ -116,6 +133,54 @@ export function createServer(port: number, postsDir?: string): Server {
       } catch {
         // File not found, continue to other routes
       }
+    }
+
+    // API routes for images - handle upload endpoint
+    const imageUploadMatch = path.match(/^\/api\/posts\/([^\/]+)\/upload$/);
+    if (imageUploadMatch) {
+      const postId = imageUploadMatch[1];
+
+      if (method === "POST") {
+        try {
+          const formData = await request.formData();
+          const file = formData.get("image");
+
+          if (!file || !(file instanceof File)) {
+            return errorResponse(new Error("No image file provided"), 400);
+          }
+
+          // Validate file type
+          const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"];
+          if (!allowedTypes.includes(file.type)) {
+            return errorResponse(new Error("Invalid image type"), 400);
+          }
+
+          // Get file extension
+          const extension = file.name.split(".").pop()?.toLowerCase() || "png";
+
+          // Read file data
+          const arrayBuffer = await file.arrayBuffer();
+          const imageData = new Uint8Array(arrayBuffer);
+
+          // Upload image
+          const imagePath = await postManager.uploadImage(postId, imageData, extension);
+
+          return jsonResponse({ path: imagePath, markdown: `![](/${imagePath})` }, 201);
+        } catch (error) {
+          return errorResponse(error);
+        }
+      }
+
+      if (method === "GET") {
+        try {
+          const images = await postManager.listImages(postId);
+          return jsonResponse({ images });
+        } catch (error) {
+          return errorResponse(error);
+        }
+      }
+
+      return methodNotAllowed();
     }
 
     // API routes - single regex for both collection and single resource
